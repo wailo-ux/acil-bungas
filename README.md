@@ -14,7 +14,7 @@ Sebelum melakukan *deployment*, pastikan komputer Server (Windows Server) sudah 
 
 ---
 
-## 🚀 Panduan Deployment (Step-by-Step)
+## Panduan Deployment (Step-by-Step)
 
 ### Langkah 1: Setup Database (MSSQL)
 1. Buka aplikasi **SQL Server Management Studio (SSMS)** di Server.

@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import mqtt from 'mqtt';
 import sql from 'mssql';
+import {Aedes} from 'aedes';               // Pengganti HiveMQ
+import net from 'net';                   // Untuk jalur TCP (ESP32)
+import http from 'http';                 // Untuk jalur WebSocket
+import wsStream from 'websocket-stream'; // Untuk jalur WebSocket (Dashboard Vue)
 
 const app = express();
 app.use(cors());
@@ -11,12 +15,12 @@ app.use(express.json());
 // 1. KONFIGURASI MICROSOFT SQL SERVER
 // ==========================================================
 const sqlConfig = {
-    user: 'wcp_user',               // Username yang baru kita buat
-    password: 'turangga100',    // Password yang baru kita buat
-    server: 'localhost\\SQLEXPRESS',// Nama server (gunakan \\ untuk backslash)
-    database: 'db_wcp4',            // Nama database
+    user: 'wcp_user',               
+    password: 'turangga100',    
+    server: 'localhost\\SQLEXPRESS',
+    database: 'db_wcp4',            
     options: {
-        encrypt: false,             // False untuk lokal
+        encrypt: false,             
         trustServerCertificate: true
     }
 };
@@ -26,9 +30,9 @@ let pool;
 async function connectDB() {
     try {
         pool = await sql.connect(sqlConfig);
-        console.log("Node.js terhubung ke Microsoft SQL Server (db_wcp4)");
+        console.log("✅ Node.js terhubung ke Microsoft SQL Server (db_wcp4)");
     } catch (err) {
-        console.error("Gagal koneksi ke MSSQL:", err.message);
+        console.error("❌ Gagal koneksi ke MSSQL:", err.message);
     }
 }
 connectDB();
@@ -131,20 +135,35 @@ let isOfflineAlerted = false;
 let isTankAlerted = false;
 
 // ==========================================================
-// 4. KONEKSI MQTT & LOG HUJAN
+// 4. KONEKSI MQTT LOKAL (AEDES) & LOG HUJAN
 // ==========================================================
-const mqttConfig = {
-    host: '64bfa2f7c0184568b06541ef6d59d621.s1.eu.hivemq.cloud',
-    port: 8883, username: 'topaabp', password: 'Admin123_'
-};
 
-const mqttClient = mqtt.connect(`mqtts://${mqttConfig.host}:${mqttConfig.port}`, {
-    username: mqttConfig.username, password: mqttConfig.password,
+const aedesBroker = await Aedes.createBroker(); 
+
+// ---> 4A. JALUR TCP (UNTUK ESP32 & NODE.JS) <---
+const serverAedesTCP = net.createServer(aedesBroker.handle);
+const TCP_PORT = 8083; // BISA DIUBAH BEBAS (Contoh: 8888). Pastikan di ESP32 juga disamakan!
+
+serverAedesTCP.listen(TCP_PORT, () => {
+    console.log(`✅ Lokal MQTT Broker (Jalur TCP untuk ESP32) berjalan di port ${TCP_PORT}`);
+});
+
+// ---> 4B. JALUR WEBSOCKET (UNTUK DASHBOARD WEBSITE) <---
+const httpServer = http.createServer();
+wsStream.createServer({ server: httpServer }, aedesBroker.handle);
+const WS_PORT = 8084; // Port untuk koneksi Web/Browser (Bisa diubah bebas)
+
+httpServer.listen(WS_PORT, () => {
+    console.log(`✅ Lokal MQTT Broker (Jalur WebSocket untuk Web) berjalan di port ${WS_PORT}`);
+});
+
+// ---> 4C. NODE.JS CLIENT KONEK KE BROKER LOKAL SENDIRI <---
+const mqttClient = mqtt.connect(`mqtt://localhost:${TCP_PORT}`, {
     clientId: 'NodeServer-' + Math.random().toString(16).substring(2, 8)
 });
 
 mqttClient.on('connect', () => {
-    console.log('Node.js terhubung ke HiveMQ');
+    console.log('✅ Node.js terhubung ke Local MQTT Broker');
     mqttClient.subscribe('pt_top/dosing/site_a/data');
     mqttClient.subscribe('pt_top/dosing/site_a/status'); 
 });
@@ -191,12 +210,14 @@ mqttClient.on('message', async (topic, message) => {
     }
 });
 
+// ==========================================================
+// 5. SERVER API (EXPRESS) & LOGS
+// ==========================================================
 app.get('/api/logs', async (req, res) => {
     try {
-        // TOP 50 menggantikan LIMIT 50 di MSSQL
         const result = await pool.request().query("SELECT TOP 50 * FROM rain_logs ORDER BY id DESC");
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.listen(3000, () => { console.log('Server API berjalan di http://localhost:3000'); });
+app.listen(3000, () => { console.log('✅ Server API Express berjalan di http://localhost:3000'); });

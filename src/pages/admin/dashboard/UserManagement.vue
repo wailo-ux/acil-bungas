@@ -23,7 +23,7 @@ onMounted(() => {
 const fetchUsers = async () => {
   isLoading.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/users')
+    const response = await fetch('http://10.210.69.112:3000/api/users')
     users.value = await response.json()
   } catch (error) {
     console.error("Gagal mengambil data user")
@@ -34,7 +34,7 @@ const fetchUsers = async () => {
 
 const approveUser = async (id) => {
   if(confirm('Setujui akun ini untuk mengakses sistem?')) {
-    await fetch('http://localhost:3000/api/users/approve', {
+    await fetch('http://10.210.69.112:3000/api/users/approve', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
     })
     fetchUsers()
@@ -43,7 +43,7 @@ const approveUser = async (id) => {
 
 const deleteUser = async (id) => {
   if(confirm('Yakin ingin menghapus akun ini secara permanen?')) {
-    await fetch('http://localhost:3000/api/users/delete', {
+    await fetch('http://10.210.69.112:3000/api/users/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
     })
     fetchUsers()
@@ -52,7 +52,7 @@ const deleteUser = async (id) => {
 
 const resetPassword = async (id, name) => {
   if(confirm(`Reset password untuk ${name} menjadi "top12345"?`)) {
-    const res = await fetch('http://localhost:3000/api/users/reset', {
+    const res = await fetch('http://10.210.69.112:3000/api/users/reset', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
     })
     const data = await res.json()

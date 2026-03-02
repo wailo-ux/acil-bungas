@@ -4,14 +4,11 @@ import mqtt from 'mqtt'
 import { mqttState } from '../../../store/mqttState'
 import VueApexCharts from 'vue3-apexcharts' // Import Grafik
 
-const mqttConfig = {
-  host: '64bfa2f7c0184568b06541ef6d59d621.s1.eu.hivemq.cloud',
-  port: 8884, username: 'topaabp', password: 'Admin123_'
-}
-
-const client = ref(null)
-const mqttConnected = ref(false)
-const userRole = ref('crew')
+// Ganti "192.168.1.10" dengan IP Address komputer server kantor Anda
+const client = mqtt.connect('ws://10.210.69.112:8083', {
+  clientId: 'VueClient-' + Math.random().toString(16).substring(2, 8)
+  // username dan password tidak perlu dimasukkan karena lokal
+});
 
 const sensorData = ref({ rain: 0, temp: 0, hum: 0, r: 0, d: 0, main_10: false, buf_100: false, buf_90: false, mode: 'auto' })
 const manualMode = ref(false)
@@ -153,7 +150,7 @@ const saveParameters = () => {
 const fetchRainLogs = async () => {
   isRainLoading.value = true
   try {
-    const response = await fetch('http://localhost:3000/api/logs')
+    const response = await fetch('http://10.210.69.112:3000/api/logs')
     rainLogs.value = await response.json()
   } catch (error) {}
   finally { isRainLoading.value = false }

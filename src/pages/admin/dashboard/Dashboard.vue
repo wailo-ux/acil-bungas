@@ -4,11 +4,10 @@ import mqtt from 'mqtt'
 import { mqttState } from '../../../store/mqttState'
 import VueApexCharts from 'vue3-apexcharts' // Import Grafik
 
-// Ganti "192.168.1.10" dengan IP Address komputer server kantor Anda
-const client = mqtt.connect('ws://10.210.69.112:8083', {
-  clientId: 'VueClient-' + Math.random().toString(16).substring(2, 8)
-  // username dan password tidak perlu dimasukkan karena lokal
-});
+// 1. KEMBALIKAN VARIABEL PENTING YANG SEMPAT TERHAPUS
+const client = ref(null)
+const mqttConnected = ref(false)
+const userRole = ref('crew')
 
 const sensorData = ref({ rain: 0, temp: 0, hum: 0, r: 0, d: 0, main_10: false, buf_100: false, buf_90: false, mode: 'auto' })
 const manualMode = ref(false)
@@ -64,6 +63,7 @@ const sortedRainLogs = computed(() => {
 const toggleSort = () => sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
 
 onMounted(() => {
+  // Pengecekan role SPV tidak akan error lagi karena variabel sudah dikembalikan
   const savedUser = localStorage.getItem('user')
   if (savedUser) { userRole.value = JSON.parse(savedUser).role }
   
@@ -76,10 +76,12 @@ onMounted(() => {
 })
 
 const connectMQTT = () => {
-  const url = `wss://${mqttConfig.host}:${mqttConfig.port}/mqtt`
+  // 2. KONEKSI MQTT WEB WAJIB MENGGUNAKAN PORT WEBSOCKET (8084)
+  const url = `ws://topswspu401:8084`
+  
   client.value = mqtt.connect(url, {
     clientId: 'VueDash-' + Math.random().toString(16).substring(2, 8),
-    username: mqttConfig.username, password: mqttConfig.password, clean: true
+    clean: true
   })
 
   client.value.on('connect', () => {
@@ -111,19 +113,16 @@ const connectMQTT = () => {
         localDose.value = payload.d == 1
         manualMode.value = payload.mode === 'manual'
 
-        // --- UPDATE GRAFIK SECARA REAL-TIME ---
         const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         chartOptions.value.xaxis.categories.push(timeNow)
         chartSeries.value[0].data.push(payload.temp || 0)
         chartSeries.value[1].data.push(payload.hum || 0)
 
-        // Batasi grafik hanya menampilkan 15 titik waktu terakhir (agar tidak lag)
         if (chartSeries.value[0].data.length > 15) {
           chartOptions.value.xaxis.categories.shift()
           chartSeries.value[0].data.shift()
           chartSeries.value[1].data.shift()
         }
-        // --------------------------------------
 
         if (!isParamInitialized && payload.p_reset !== undefined) {
           inputRainReset.value = payload.p_reset
@@ -150,7 +149,7 @@ const saveParameters = () => {
 const fetchRainLogs = async () => {
   isRainLoading.value = true
   try {
-    const response = await fetch('http://10.210.69.112:3000/api/logs')
+    const response = await fetch('topswspu401:8888/api/logs')
     rainLogs.value = await response.json()
   } catch (error) {}
   finally { isRainLoading.value = false }
@@ -158,7 +157,6 @@ const fetchRainLogs = async () => {
 
 onUnmounted(() => { if (client.value) client.value.end(); clearTimeout(espWatchdog); })
 </script>
-
 <template>
   <div class="w-full flex flex-col gap-6 animate-fade-in">
     

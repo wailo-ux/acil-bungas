@@ -2,23 +2,23 @@ import express from 'express';
 import cors from 'cors';
 import mqtt from 'mqtt';
 import sql from 'mssql';
-import {Aedes} from 'aedes';               // Pengganti HiveMQ
-import net from 'net';                   // Untuk jalur TCP (ESP32)
-import http from 'http';                 // Untuk jalur WebSocket
-import wsStream from 'websocket-stream'; // Untuk jalur WebSocket (Dashboard Vue)
+import {Aedes} from 'aedes';              
+import net from 'net';                  
+import http from 'http';                 
+import wsStream from 'websocket-stream'; 
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ==========================================================
+
 // 1. KONFIGURASI MICROSOFT SQL SERVER
-// ==========================================================
+
 const sqlConfig = {
-    user: 'wcp_user',               
-    password: 'turangga100',    
-    server: 'localhost\\SQLEXPRESS',
-    database: 'db_wcp4',            
+    user: 'sa',               
+    password: 'M45UK_SQL',    
+    server: 'topswspu401',
+    database: 'DB_WCP4',            
     options: {
         encrypt: false,             
         trustServerCertificate: true
@@ -30,16 +30,14 @@ let pool;
 async function connectDB() {
     try {
         pool = await sql.connect(sqlConfig);
-        console.log("✅ Node.js terhubung ke Microsoft SQL Server (db_wcp4)");
+        console.log("Node.js terhubung ke Microsoft SQL Server (db_wcp4)");
     } catch (err) {
-        console.error("❌ Gagal koneksi ke MSSQL:", err.message);
+        console.error(" Gagal koneksi ke MSSQL:", err.message);
     }
 }
 connectDB();
 
-// ==========================================================
-// 2. ENDPOINT AUTH & MANAJEMEN USER (VERSI MSSQL)
-// ==========================================================
+
 app.post('/api/auth/register', async (req, res) => {
     const { username, password, full_name, question, answer } = req.body;
     try {
@@ -117,9 +115,7 @@ app.post('/api/users/reset', async (req, res) => {
     } catch (err) { res.status(500).json({ status: 'error' }); }
 });
 
-// ==========================================================
-// 3. KONFIGURASI TELEGRAM BOT 
-// ==========================================================
+
 const TELEGRAM_TOKEN = 'GANTI_DENGAN_TOKEN_BOTFATHER'; 
 const CHAT_ID = 'GANTI_DENGAN_CHAT_ID_GRUP'; 
 
@@ -134,18 +130,15 @@ async function sendTelegramAlert(message) {
 let isOfflineAlerted = false;
 let isTankAlerted = false;
 
-// ==========================================================
-// 4. KONEKSI MQTT LOKAL (AEDES) & LOG HUJAN
-// ==========================================================
 
 const aedesBroker = await Aedes.createBroker(); 
 
 // ---> 4A. JALUR TCP (UNTUK ESP32 & NODE.JS) <---
 const serverAedesTCP = net.createServer(aedesBroker.handle);
-const TCP_PORT = 8083; // BISA DIUBAH BEBAS (Contoh: 8888). Pastikan di ESP32 juga disamakan!
+const TCP_PORT = 8888; // BISA DIUBAH BEBAS (Contoh: 8888). Pastikan di ESP32 juga disamakan!
 
 serverAedesTCP.listen(TCP_PORT, () => {
-    console.log(`✅ Lokal MQTT Broker (Jalur TCP untuk ESP32) berjalan di port ${TCP_PORT}`);
+    console.log(`Lokal MQTT Broker (Jalur TCP untuk ESP32) berjalan di port ${TCP_PORT}`);
 });
 
 // ---> 4B. JALUR WEBSOCKET (UNTUK DASHBOARD WEBSITE) <---
@@ -154,7 +147,7 @@ wsStream.createServer({ server: httpServer }, aedesBroker.handle);
 const WS_PORT = 8084; // Port untuk koneksi Web/Browser (Bisa diubah bebas)
 
 httpServer.listen(WS_PORT, () => {
-    console.log(`✅ Lokal MQTT Broker (Jalur WebSocket untuk Web) berjalan di port ${WS_PORT}`);
+    console.log(`Lokal MQTT Broker (Jalur WebSocket untuk Web) berjalan di port ${WS_PORT}`);
 });
 
 // ---> 4C. NODE.JS CLIENT KONEK KE BROKER LOKAL SENDIRI <---
@@ -163,7 +156,7 @@ const mqttClient = mqtt.connect(`mqtt://localhost:${TCP_PORT}`, {
 });
 
 mqttClient.on('connect', () => {
-    console.log('✅ Node.js terhubung ke Local MQTT Broker');
+    console.log('Node.js terhubung ke Local MQTT Broker');
     mqttClient.subscribe('pt_top/dosing/site_a/data');
     mqttClient.subscribe('pt_top/dosing/site_a/status'); 
 });
@@ -197,7 +190,7 @@ mqttClient.on('message', async (topic, message) => {
                     .input('durasi', sql.Int, payload.durasi || 0)
                     .input('total', sql.Float, payload.total_hujan || 0)
                     .query(`INSERT INTO rain_logs (waktu_mulai, waktu_selesai, durasi_menit, total_hujan) VALUES (@mulai, @selesai, @durasi, @total)`);
-                console.log("🌧️ Log hujan disimpan ke MSSQL.");
+                console.log("Log hujan disimpan ke MSSQL.");
             }
 
             if (payload.main_10 === false || payload.main_10 === 0) {
@@ -210,9 +203,7 @@ mqttClient.on('message', async (topic, message) => {
     }
 });
 
-// ==========================================================
-// 5. SERVER API (EXPRESS) & LOGS
-// ==========================================================
+
 app.get('/api/logs', async (req, res) => {
     try {
         const result = await pool.request().query("SELECT TOP 50 * FROM rain_logs ORDER BY id DESC");
@@ -220,4 +211,4 @@ app.get('/api/logs', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.listen(3000, () => { console.log('✅ Server API Express berjalan di http://localhost:3000'); });
+app.listen(3000, () => { console.log(' Server API Express berjalan di http://localhost:3000'); });

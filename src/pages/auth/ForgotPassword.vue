@@ -19,7 +19,7 @@ const handleVerify = async () => {
   errorMsg.value = ''
   
   try {
-    const res = await fetch('http://10.210.69.112:3000/api/auth/verify-security', {
+    const res = await fetch('topswspu401:8888/api/auth/verify-security', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: form.value.username, answer: form.value.answer })
@@ -47,7 +47,7 @@ const handleReset = async () => {
   errorMsg.value = ''
 
   try {
-    const res = await fetch('http://10.210.69.112:3000/api/auth/reset-password', {
+    const res = await fetch('topswspu401:8888/api/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: form.value.username, new_password: form.value.new_password })
